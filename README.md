@@ -2,13 +2,13 @@
 
 A full-stack expense tracking app that uses AI to parse natural language input.
 
-Built by: Ansh  
-GitHub: (add your link)  
-Time to build: (fill in)
+Built by: Anshul Shivgiri
+GitHub: [https://github.com/zardulu/expense-tracker](https://github.com/zardulu/expense-tracker)
+Time to build: ~45 min with Codex + Cursor
 
 ## 🎥 Demo
 
-(add your screen recording link)
+[https://drive.google.com/file/d/1YW_d_VYI4IjuGmbK9qgg4rHr9Ip7BzN2/view?usp=sharing](https://drive.google.com/file/d/1YW_d_VYI4IjuGmbK9qgg4rHr9Ip7BzN2/view?usp=sharing)
 
 ## 🛠️ Tech Stack
 
@@ -35,6 +35,19 @@ cp .env.example .env
 # Add your GROQ_API_KEY to .env
 npm run dev
 ```
+
+### Backend Tests
+
+```bash
+cd backend
+npm test
+```
+
+Notes:
+
+- Tests run with **Vitest** + **Supertest**.
+- The AI parser is **mocked** in route tests, so tests don’t call Groq or require `GROQ_API_KEY`.
+- SQLite runs in-memory during tests (`SQLITE_PATH=":memory:"`).
 
 Health check:
 
@@ -99,29 +112,31 @@ If the input is invalid or you cannot extract an amount, respond:
 
 ## ⏱️ Time Breakdown
 
-| Task | Time |
-|------|------|
-| Setup | (fill in) |
-| Backend | (fill in) |
-| AI Integration | (fill in) |
-| Mobile App | (fill in) |
-| Testing & Polish | (fill in) |
-| **Total** | **(fill in)** |
+
+| Task             | Time        |
+| ---------------- | ----------- |
+| Setup            | ~5 min      |
+| Backend          | ~10 min     |
+| AI Integration   | ~10 min     |
+| Mobile App       | ~10 min     |
+| Testing & Polish | ~10 min     |
+| **Total**        | **~45 min** |
+
 
 ## 🔮 What I'd Add With More Time
 
-- [ ] Persist API base URL via env/config for device testing
-- [ ] Edit expense functionality
-- [ ] Basic analytics by category (monthly breakdown)
+- Analytics by category (monthly breakdown)
+- Natural language query  - “How much did I spend on food last month?”
+- Receipts - photo upload, optional OCR 
+- Offline mode
 
 ## 📝 AI Tools Used
 
-- Cursor: scaffolding + iteration
-- LLM-assisted prompts from `PROJECT.MD`
+- Codex: planning + scaffolding
+- Cursor: refactoring
 
 Most helpful prompt: "You are an expense parser… RESPOND ONLY WITH VALID JSON…"
 
 ## 📜 License
 
 MIT
-

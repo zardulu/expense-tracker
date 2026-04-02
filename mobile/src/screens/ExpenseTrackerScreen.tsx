@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -11,7 +12,7 @@ import {
   View,
 } from "react-native";
 
-import { addExpense, deleteExpense, getExpenses } from "../services/api";
+import { addExpense, deleteExpense, editExpense, getExpenses } from "../services/api";
 import { Expense } from "../types/expense";
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -45,6 +46,10 @@ export function ExpenseTrackerScreen() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [successExpense, setSuccessExpense] = useState<Expense | null>(null);
   const [deletingIds, setDeletingIds] = useState<Record<number, boolean>>({});
+  const [editing, setEditing] = useState<{ expense: Expense; text: string } | null>(
+    null,
+  );
+  const [savingEdit, setSavingEdit] = useState(false);
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canSubmit = input.trim().length > 0 && !submitting;
@@ -130,6 +135,38 @@ export function ExpenseTrackerScreen() {
     },
     [expenses],
   );
+
+  const openEdit = useCallback((expense: Expense) => {
+    setEditing({ expense, text: expense.original_input });
+  }, []);
+
+  const closeEdit = useCallback(() => {
+    if (savingEdit) return;
+    setEditing(null);
+  }, [savingEdit]);
+
+  const saveEdit = useCallback(async () => {
+    if (!editing) return;
+    const text = editing.text.trim();
+    if (!text) {
+      Alert.alert("Invalid input", "Please enter an expense with an amount.");
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const updated = await editExpense(editing.expense.id, text);
+      setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+      setSuccessExpense(updated);
+      if (successTimer.current) clearTimeout(successTimer.current);
+      successTimer.current = setTimeout(() => setSuccessExpense(null), 3000);
+      setEditing(null);
+    } catch (err) {
+      Alert.alert("Could not update expense", err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [editing]);
 
   const empty = useMemo(() => {
     if (refreshing) return null;
@@ -233,26 +270,98 @@ export function ExpenseTrackerScreen() {
 
               <View style={styles.itemBottom}>
                 <Text style={styles.itemTime}>{timeAgo(item.created_at)}</Text>
-                <Pressable
-                  disabled={deleting}
-                  onPress={() => confirmDelete(item)}
-                  style={({ pressed }) => [
-                    styles.deleteButton,
-                    pressed && !deleting && styles.deleteButtonPressed,
-                    deleting && styles.deleteButtonDisabled,
-                  ]}
-                >
-                  {deleting ? (
-                    <ActivityIndicator color="#ef4444" />
-                  ) : (
-                    <Text style={styles.deleteButtonText}>Delete</Text>
-                  )}
-                </Pressable>
+                <View style={styles.itemActions}>
+                  <Pressable
+                    disabled={deleting}
+                    onPress={() => openEdit(item)}
+                    style={({ pressed }) => [
+                      styles.editButton,
+                      pressed && !deleting && styles.editButtonPressed,
+                      deleting && styles.editButtonDisabled,
+                    ]}
+                  >
+                    <Text style={styles.editButtonText}>Edit</Text>
+                  </Pressable>
+
+                  <Pressable
+                    disabled={deleting}
+                    onPress={() => confirmDelete(item)}
+                    style={({ pressed }) => [
+                      styles.deleteButton,
+                      pressed && !deleting && styles.deleteButtonPressed,
+                      deleting && styles.deleteButtonDisabled,
+                    ]}
+                  >
+                    {deleting ? (
+                      <ActivityIndicator color="#ef4444" />
+                    ) : (
+                      <Text style={styles.deleteButtonText}>Delete</Text>
+                    )}
+                  </Pressable>
+                </View>
               </View>
             </View>
           );
         }}
       />
+
+      <Modal
+        visible={!!editing}
+        transparent
+        animationType="fade"
+        onRequestClose={closeEdit}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit expense</Text>
+            <Text style={styles.modalSubtitle}>Update the original text and save.</Text>
+
+            <TextInput
+              value={editing?.text ?? ""}
+              onChangeText={(t) =>
+                setEditing((prev) => (prev ? { ...prev, text: t } : prev))
+              }
+              editable={!savingEdit}
+              placeholder="e.g., Spent 500 on groceries at BigBazaar"
+              placeholderTextColor="#94a3b8"
+              style={styles.modalInput}
+              multiline
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={closeEdit}
+                disabled={savingEdit}
+                style={({ pressed }) => [
+                  styles.modalButton,
+                  styles.modalButtonSecondary,
+                  pressed && !savingEdit && styles.modalButtonPressed,
+                  savingEdit && styles.modalButtonDisabled,
+                ]}
+              >
+                <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={saveEdit}
+                disabled={savingEdit || !(editing?.text?.trim().length)}
+                style={({ pressed }) => [
+                  styles.modalButton,
+                  styles.modalButtonPrimary,
+                  pressed && !savingEdit && styles.modalButtonPressed,
+                  (savingEdit || !(editing?.text?.trim().length)) && styles.modalButtonDisabled,
+                ]}
+              >
+                {savingEdit ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.modalButtonPrimaryText}>Save</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -402,10 +511,33 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  itemActions: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+  },
   itemTime: {
     color: "#94a3b8",
     fontSize: 12,
     fontWeight: "600",
+  },
+  editButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    backgroundColor: "#fff",
+  },
+  editButtonPressed: {
+    backgroundColor: "#f8fafc",
+  },
+  editButtonDisabled: {
+    opacity: 0.6,
+  },
+  editButtonText: {
+    color: "#0f172a",
+    fontWeight: "800",
   },
   deleteButton: {
     paddingHorizontal: 12,
@@ -436,6 +568,74 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     marginTop: 6,
     color: "#64748b",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    padding: 20,
+    justifyContent: "center",
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#0f172a",
+  },
+  modalSubtitle: {
+    marginTop: 6,
+    color: "#64748b",
+  },
+  modalInput: {
+    marginTop: 12,
+    minHeight: 90,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: "#0f172a",
+  },
+  modalActions: {
+    marginTop: 14,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  modalButton: {
+    minWidth: 96,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalButtonPrimary: {
+    backgroundColor: "#0f172a",
+  },
+  modalButtonPrimaryText: {
+    color: "#fff",
+    fontWeight: "900",
+  },
+  modalButtonSecondary: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  modalButtonSecondaryText: {
+    color: "#0f172a",
+    fontWeight: "800",
+  },
+  modalButtonPressed: {
+    opacity: 0.92,
+  },
+  modalButtonDisabled: {
+    opacity: 0.6,
   },
 });
 

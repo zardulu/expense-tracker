@@ -65,3 +65,16 @@ export async function deleteExpense(id: number): Promise<void> {
   if (!json.success) throw new Error(json.error);
 }
 
+export async function editExpense(id: number, input: string): Promise<Expense> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/expenses/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ input }),
+  });
+
+  if (!res.ok) throw new Error(await parseApiError(res));
+  const json = (await res.json()) as ApiSuccess<{ expense: Expense }> | ApiError;
+  if (!json.success) throw new Error(json.error);
+  return json.expense;
+}
+

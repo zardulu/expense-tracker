@@ -86,3 +86,43 @@ export function deleteExpense(id: number): boolean {
   return result.changes > 0;
 }
 
+export function updateExpense(
+  id: number,
+  input: ExpenseInput,
+): Expense | null {
+  const db = getDb();
+
+  const result = db
+    .prepare(
+      `UPDATE expenses
+       SET amount = @amount,
+           currency = @currency,
+           category = @category,
+           description = @description,
+           merchant = @merchant,
+           original_input = @original_input
+       WHERE id = @id`,
+    )
+    .run({
+      id,
+      amount: input.amount,
+      currency: input.currency ?? "INR",
+      category: input.category,
+      description: input.description,
+      merchant: input.merchant ?? null,
+      original_input: input.original_input,
+    });
+
+  if (result.changes <= 0) return null;
+
+  const row = db
+    .prepare(
+      `SELECT id, amount, currency, category, description, merchant, original_input, created_at
+       FROM expenses
+       WHERE id = ?`,
+    )
+    .get(id) as Expense | undefined;
+
+  return row ?? null;
+}
+

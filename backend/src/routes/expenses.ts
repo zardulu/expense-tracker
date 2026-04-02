@@ -1,7 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
 
-import { createExpense, deleteExpense, getAllExpenses } from "../database/expensesRepo";
+import {
+  createExpense,
+  deleteExpense,
+  getAllExpenses,
+  updateExpense,
+} from "../database/expensesRepo";
 import { parseExpense } from "../services/ai/parseExpense";
 
 export const expensesRouter = Router();
@@ -50,6 +55,54 @@ expensesRouter.get("/", (_req, res) => {
     return res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : "Failed to fetch expenses",
+    });
+  }
+});
+
+const UpdateParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const UpdateExpenseBodySchema = z.object({
+  input: z.string().min(1),
+});
+
+expensesRouter.put("/:id", async (req, res) => {
+  const parsedParams = UpdateParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(400).json({ success: false, error: "Invalid expense id" });
+  }
+
+  const parsedBody = UpdateExpenseBodySchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ success: false, error: "Invalid request body" });
+  }
+
+  const { input } = parsedBody.data;
+  const parsed = await parseExpense(input);
+  if ("error" in parsed) {
+    return res.status(400).json({ success: false, error: parsed.error });
+  }
+
+  try {
+    const expense = updateExpense(parsedParams.data.id, {
+      amount: parsed.amount,
+      currency: parsed.currency,
+      category: parsed.category,
+      description: parsed.description,
+      merchant: parsed.merchant,
+      original_input: input,
+    });
+
+    if (!expense) {
+      return res.status(404).json({ success: false, error: "Expense not found" });
+    }
+
+    return res.status(200).json({ success: true, expense });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to update expense",
     });
   }
 });

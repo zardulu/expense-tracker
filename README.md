@@ -2,8 +2,8 @@
 
 A full-stack expense tracking app that uses AI to parse natural language input.
 
-Built by: Anshul Shivgiri
-GitHub: [https://github.com/zardulu/expense-tracker](https://github.com/zardulu/expense-tracker)
+Built by: Anshul Shivgiri  
+GitHub: [https://github.com/zardulu/expense-tracker](https://github.com/zardulu/expense-tracker)  
 Time to build: ~45 min with Codex + Cursor
 
 ## 🎥 Demo

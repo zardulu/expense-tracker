@@ -33,3 +33,12 @@ export function initDb() {
   `);
 }
 
+export function closeDbForTestsOnly() {
+  if (!db) return;
+  try {
+    db.close();
+  } finally {
+    db = null;
+  }
+}
+
